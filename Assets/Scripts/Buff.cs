@@ -3,10 +3,11 @@ using UnityEngine;
 
 public class Buff : NetworkBehaviour
 {
-    public float rotationSpeed = 50f;
+    public float rotationSpeed = 30f;
 
     private void Update()
     {
-        transform.Rotate(Vector3.up, rotationSpeed * Time.deltaTime);
+        
+        transform.Rotate(0, rotationSpeed * Time.deltaTime, 0);
     }
 }

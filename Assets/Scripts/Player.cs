@@ -1,27 +1,41 @@
+//using Cinemachine;
 using System.Collections.Generic;
+using Unity.Cinemachine;
 using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
-using Cinemachine;
+using Random = UnityEngine.Random;
 
 public class Player : NetworkBehaviour
 {
     public NetworkVariable<FixedString32Bytes> accoundID = new();
-    public NetworkVariable<int> health = new();
-    public NetworkVariable<int> attack = new();
+    public NetworkVariable<int> health = new(100);
+    public NetworkVariable<int> attack = new(5);
 
     public float moveSpeed = 5f;
     public float projectileSpeed = 10f;
     public GameObject projectileSpawnPoint;
 
     private CharacterController controller;
-    //private CinemachineVirtualCamera virtualCamera;
+    private CinemachineCamera virtualCamera;
 
     [System.Serializable]
     public class PlayerData
     {
-       
+        public string accoundID;
+        public Vector3 position;
+        public int health;
+        public int attack;
+
+        public PlayerData(string id, Vector3 pos, int hp, int atk)
+        {
+            accoundID = id;
+            position = pos;
+            health = hp;
+            attack = atk;
+        }
     }
+
     private void Awake()
     {
         controller = GetComponent<CharacterController>();
@@ -31,7 +45,7 @@ public class Player : NetworkBehaviour
     {
         if (IsOwner)
         {
-            //SetupCamera();
+            SetupCamera();
         }
 
         health.OnValueChanged += OnHealthChanged;
@@ -41,23 +55,24 @@ public class Player : NetworkBehaviour
     {
         health.OnValueChanged -= OnHealthChanged;
 
-        // Save data
-        GameManager.Instance.playerStatesByAccountID[accoundID.Value.ToString()]
-            = new PlayerData(accoundID.Value.ToString(),
-            transform.position, health.Value, attack.Value);
+        if (IsServer)
+        {
+            GameManager.Instance.playerStatesByAccountID[accoundID.Value.ToString()] =
+                new PlayerData(accoundID.Value.ToString(), transform.position, health.Value, attack.Value);
+        }
 
         print("Me desconecté " + NetworkManager.Singleton.LocalClientId + " y se guardó la data de " + accoundID.Value.ToString());
     }
 
-    //private void SetupCamera()
-    //{
-    //    virtualCamera = FindObjectOfType<CinemachineVirtualCamera>();
-    //    if (virtualCamera != null)
-    //    {
-    //        virtualCamera.Follow = transform;
-    //        virtualCamera.LookAt = transform;
-    //    }
-    //}
+    private void SetupCamera()
+    {
+        virtualCamera = FindAnyObjectByType<CinemachineCamera>();
+        if (virtualCamera != null)
+        {
+            virtualCamera.Follow = transform;
+            virtualCamera.LookAt = transform;
+        }
+    }
 
     public void SetData(PlayerData playerData)
     {
@@ -86,12 +101,12 @@ public class Player : NetworkBehaviour
 
     private void HandleAttack()
     {
-        if (Input.GetMouseButtonDown(0)) 
+        if (Input.GetMouseButtonDown(0))
         {
             ShootProjectile();
         }
 
-        if (Input.GetKeyDown(KeyCode.Space)) 
+        if (Input.GetKeyDown(KeyCode.Space))
         {
             PerformMeleeAttack();
         }
@@ -157,6 +172,15 @@ public class Player : NetworkBehaviour
         {
             CollectBuffServerRpc(other.GetComponent<NetworkObject>().NetworkObjectId);
         }
+        if (other.CompareTag("Projectile"))
+        {
+            Projectile projectile = other.GetComponent<Projectile>();
+            if (projectile != null && projectile.ownerId != OwnerClientId)
+            {
+                TakeDamageServerRpc(projectile.damage, projectile.ownerId);
+                other.GetComponent<NetworkObject>().Despawn();
+            }
+        }
     }
 
     [ServerRpc]
@@ -164,7 +188,6 @@ public class Player : NetworkBehaviour
     {
         attack.Value += Random.Range(1, 4);
         print("Jugador " + accoundID.Value + " obtuvo un buff! Ataque: " + attack.Value);
-
         GameManager.Instance.BuffCollectedServerRpc(buffNetId);
     }
 }

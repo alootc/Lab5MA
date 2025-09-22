@@ -29,7 +29,9 @@ public class UIGameManager : NetworkBehaviour
 
     private void Update()
     {
-        if (localPlayer == null && NetworkManager.Singleton.LocalClient != null)
+        if (NetworkManager.Singleton == null) return;
+
+        if (localPlayer == null && NetworkManager.Singleton.LocalClient != null && NetworkManager.Singleton.LocalClient.PlayerObject != null)
         {
             localPlayer = NetworkManager.Singleton.LocalClient.PlayerObject.GetComponent<Player>();
             if (localPlayer != null)
@@ -40,6 +42,7 @@ public class UIGameManager : NetworkBehaviour
             }
         }
     }
+
 
     public void OnSubmitName()
     {
