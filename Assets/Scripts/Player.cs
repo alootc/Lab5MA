@@ -48,7 +48,7 @@ public class Player : NetworkBehaviour
             SetupCamera();
         }
 
-        health.OnValueChanged += OnHealthChanged;
+
     }
 
     public override void OnNetworkDespawn()
